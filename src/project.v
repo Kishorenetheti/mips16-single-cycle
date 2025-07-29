@@ -239,7 +239,20 @@ module mips_single_cycle(
   output [15:0] ALU_out
 );
 
-:0] ALUOp;
+  wire [15:0] instruction;
+  /* verilator lint_off UNUSEDSIGNAL */
+  wire [15:0] pc_full;
+  /* verilator lint_on UNUSEDSIGNAL */
+  wire [3:0] pc_addr;
+  wire [3:0] rs, rt, rd, im;
+  wire RegDst, ALUsrc, MemtoReg, MemWrite, MemRead, RegWrite, jump;
+  wire [15:0] Read_data1, Read_data2;
+  wire [15:0] sign_ext_immediate;
+  wire [15:0] alu_input_b;
+  wire [15:0] mem_read_data;
+  wire [3:0] write_reg;
+  wire [15:0] write_data_final;
+  wire [3:0] ALUOp;
 
   // Extract only the bits we need from PC
   assign pc_addr = pc_full[3:0];
