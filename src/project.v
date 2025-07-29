@@ -15,10 +15,10 @@ module tt_um_mips16_single_cycle (
   // Convert reset to positive logic
   wire rst = !rst_n;
   
-  // Internal signals from MIPS processor
+  // Internal signals from MIPS processor - only what we actually use
   wire [15:0] ALU_out;
 
-  // Instantiate the MIPS processor
+  // Instantiate the MIPS processor - simplified interface
   mips_single_cycle cpu (
     .clk(clk),
     .rst(rst),
@@ -49,6 +49,7 @@ module PC(
 
   assign pc_next = (jump) ? jump_address : (p_c + 2);
 
+  // Only synchronous reset to avoid SYNCASYNCNET warning
   always @(posedge clk) begin
     if (rst)
       p_c <= 16'd0;
@@ -64,11 +65,11 @@ endmodule
 
 // Instruction Memory Module
 module instruction_memory(
-  input [3:0] p_in,  // Changed to 4-bit to match array size
+  input [15:0] p_in,
   output wire [15:0] instruction
 );
   reg [15:0] instruction1;
-  reg [15:0] rom [0:15];  // Fixed array declaration
+  reg [15:0] rom [0:15];  
   
   initial begin
     rom[0]  = 16'b0000_0001_0010_0011;  // ADD
@@ -90,7 +91,11 @@ module instruction_memory(
   end
   
   always @(*) begin
-    instruction1 = rom[p_in];  // Direct indexing since p_in is now 4-bit
+    // Fix width truncation by using proper indexing
+    if ((p_in[3:0]) < 16)  // Use only lower 4 bits for indexing
+      instruction1 = rom[p_in[3:0]];
+    else
+      instruction1 = 16'b0000_0000_0000_0000;
   end
   
   assign instruction = instruction1;
@@ -159,13 +164,9 @@ module decode(
         rt = instruction_in[3:0];
       end
 
+      // Complete case coverage for all remaining 4-bit values
       4'b1000, 4'b1001, 4'b1010, 4'b1011, 4'b1100, 4'b1101, 4'b1110, 4'b1111: begin
-        // Complete case coverage for all possible 4-bit values
-        rs = 4'b0000;
-        rt = 4'b0000;
-        rd = 4'b0000;
-        im = 4'b0000;
-        jump = 12'b000000000000;
+        // Use default values already set above
       end
     endcase
   end
@@ -224,8 +225,9 @@ module control_unit(
         MemWrite = 1'b0; MemRead = 1'b0; jump = 1'b0; ALUOp = 4'b0111;
       end
 
+      // Complete case coverage for all remaining 4-bit values
       4'b1000, 4'b1001, 4'b1010, 4'b1011, 4'b1100, 4'b1101, 4'b1110, 4'b1111: begin
-        // Complete case coverage - default values already set above
+        // Use default values already set above
       end
     endcase
   end
@@ -261,13 +263,16 @@ endmodule
 module data_memory(
   input clk,
   input MemWrite, MemRead,
-  input [5:0] address,  // Changed to 6-bit to match array size
+  input [15:0] address,  // Keep as 16-bit but use only lower 6 bits
   input [15:0] write_data,
   output reg [15:0] read_data
 );
 
-  reg [15:0] mem [0:63]; // Fixed array declaration - 64 words of memory
+  reg [15:0] mem [0:63]; // 64 words of memory
   integer i;
+  wire [5:0] addr_index;  // 6-bit address for indexing
+  
+  assign addr_index = address[5:0];  // Use only lower 6 bits
 
   initial begin
     // Initialize memory with some test values
@@ -283,12 +288,12 @@ module data_memory(
 
   always @(posedge clk) begin
     if (MemWrite)
-      mem[address] <= write_data;  // address is now properly sized
+      mem[addr_index] <= write_data;  // Use 6-bit index
   end
 
   always @(*) begin
     if (MemRead)
-      read_data = mem[address];  // address is now properly sized
+      read_data = mem[addr_index];  // Use 6-bit index
     else
       read_data = 16'b0;
   end
@@ -312,7 +317,7 @@ module mips_single_cycle(
   wire [15:0] sign_ext_immediate;
   wire [3:0] rs, rt, rd;
   wire [3:0] ALUOp;
-  wire Zero;  // Added Zero signal
+  wire Zero;  // Zero signal for ALU
 
   // Program Counter
   PC pc_inst(
@@ -323,15 +328,15 @@ module mips_single_cycle(
     .pc_out(pc)
   );
 
-  // Instruction Memory - use lower 4 bits of PC for indexing
+  // Instruction Memory
   instruction_memory imem(
-    .p_in(pc[3:0]),  // Use only lower 4 bits for ROM indexing
+    .p_in(pc),  // Full PC width, but only lower bits used inside
     .instruction(instruction)
   );
 
   // Decode instruction
   wire [3:0] opcode, im;
-  wire [11:0] jump_addr;
+  wire [11:0] jump_addr;  // Keep this even though not directly used
   decode dec(
     .instruction_in(instruction),
     .rs(rs),
@@ -356,7 +361,7 @@ module mips_single_cycle(
   );
 
   // Register File
-  reg [15:0] reg_file [0:15];  // Fixed array declaration
+  reg [15:0] reg_file [0:15];  
   integer j;
   
   // Initialize register file
@@ -382,21 +387,21 @@ module mips_single_cycle(
   // ALU input B mux
   assign alu_input_b = ALUsrc ? sign_ext_immediate : Read_data2;
 
-  // ALU
+  // ALU - properly connect Zero output
   ALU alu_inst(
     .A(Read_data1),
     .B(alu_input_b),
     .ALUOp(ALUOp),
     .ALU_out(ALU_out),
-    .Zero(Zero)  // Connect Zero signal
+    .Zero(Zero)  // Connect Zero signal properly
   );
 
-  // Data Memory
+  // Data Memory - keep 16-bit address interface
   data_memory dmem(
     .clk(clk),
     .MemWrite(MemWrite),
     .MemRead(MemRead),
-    .address(ALU_out[5:0]), // Use lower 6 bits for address - matches data_memory input
+    .address(ALU_out), // Full 16-bit address
     .write_data(Read_data2),
     .read_data(mem_read_data)
   );
@@ -407,7 +412,7 @@ module mips_single_cycle(
   // Write data mux
   assign write_data_final = MemtoReg ? mem_read_data : ALU_out;
 
-  // Register file write - use synchronous reset only
+  // Register file write - only synchronous reset
   integer k;
   always @(posedge clk) begin
     if (rst) begin
