@@ -61,7 +61,7 @@ endmodule
 
 // Instruction Memory Module
 module instruction_memory(
-  input [15:0] p_in,
+  input [3:0] p_in,  // Changed from [15:0] to [3:0] since only lower 4 bits are used
   output reg [15:0] instruction
 );
 
@@ -86,22 +86,16 @@ module instruction_memory(
     rom[15] = 16'b0101_0000_0000_0000;
   end
 
-  /* verilator lint_off WIDTHEXPAND */
   always @(*) begin
-    if ((p_in[3:0]) < 16)
-      instruction = rom[p_in[3:0]];
-    else
-      instruction = 16'b0;
+    instruction = rom[p_in];  // Simplified since p_in is now 4 bits
   end
-  /* verilator lint_on WIDTHEXPAND */
 
 endmodule
 
 // Decoder Module
 module decode(
   input [15:0] instruction_in,
-  output reg [3:0] rs, rt, opcode, rd, im,
-  output reg [11:0] jump
+  output reg [3:0] rs, rt, opcode, rd, im
 );
 
   always @(*) begin
@@ -109,7 +103,6 @@ module decode(
     rt = 4'b0000;
     rd = 4'b0000;
     im = 4'b0000;
-    jump = 12'b0;
     opcode = instruction_in[15:12];   
 
     case(opcode)
@@ -139,7 +132,7 @@ module decode(
         im = instruction_in[3:0];
       end
       4'b0101: begin
-        jump = instruction_in[11:0];
+        // Jump instruction - no additional fields needed for this implementation
       end
       4'b0110: begin
         rd = instruction_in[11:8];
@@ -265,7 +258,7 @@ module mips_single_cycle(
   );
 
   instruction_memory imem(
-    .p_in(pc),
+    .p_in(pc[3:0]),  // Only pass lower 4 bits
     .instruction(instruction)
   );
 
@@ -274,9 +267,8 @@ module mips_single_cycle(
     .rs(rs),
     .rt(rt),
     .rd(rd),
-    .opcode(),
-    .im(im),
-    .jump()
+    .opcode(),  // Not connected since we use instruction[15:12] directly
+    .im(im)
   );
 
   control_unit cu(
