@@ -1,23 +1,23 @@
 # Tiny Tapeout project information
 project:
-  title:        "16-bit MIPS Single Cycle Processor"      # Project title
-  author:       "Kishore Netheti"                         # Your name
-  discord:      "kishore_netheti"                         # Your discord handle (optional)
-  description:  "A complete 16-bit MIPS single-cycle processor with 8 instruction types including arithmetic, logical, memory, and jump operations"      # Short description of what your project does
-  language:     "Verilog"                                 # other examples include SystemVerilog, Amaranth, VHDL, etc
-  clock_hz:     10000000                                  # Clock frequency in Hz (10 MHz)
+  title:       "16-bit MIPS Single Cycle Processor"  # Project title
+  author:      "Kishore Netheti"                     # Your name
+  discord:     "kishore_netheti"                     # Your Discord handle (optional)
+  description: "A complete 16-bit MIPS single-cycle processor with 8 instruction types including arithmetic, logical, memory, and jump operations"  # Short description
+  language:    "Verilog"                             # Language used
+  clock_hz:    10000000                              # Clock frequency in Hz (10 MHz)
 
-  # How many tiles your design occupies? A single tile is about 160 x 100 um.
-  tiles: "1x1"          # Valid values: 1x1, 1x2, 2x2, 3x2, 4x2 or 8x2
+  # Tile usage (single tile of about 160 x 100 um)
+  tiles: "1x1"                                      # Valid values: 1x1, 1x2, 2x2, 3x2, 4x2, 8x2
 
-  # Your top module name must start with "tt_um_". Make it unique by including your github username:
-  top_module:  "tt_um_mips16_single_cycle"
+  # Top module (must start with "tt_um_")
+  top_module: "tt_um_mips16_single_cycle"
 
-  # List your project's source files here. Source files must be in ./src and you must list each source file separately, one per line:
+  # Source files in ./src directory
   source_files:
     - project.v
 
-# The pinout of your project. Leave unused pins blank. Many internal signals are not pinned out.
+# Pinout configuration
 pinout:
   # Inputs
   ui[0]: ""
@@ -29,7 +29,7 @@ pinout:
   ui[6]: ""
   ui[7]: ""
 
-  # Outputs
+  # Outputs (lower 8 bits of ALU output)
   uo[0]: "ALU_out[0] - ALU Output Bit 0"
   uo[1]: "ALU_out[1] - ALU Output Bit 1"
   uo[2]: "ALU_out[2] - ALU Output Bit 2"
@@ -39,7 +39,7 @@ pinout:
   uo[6]: "ALU_out[6] - ALU Output Bit 6"
   uo[7]: "ALU_out[7] - ALU Output Bit 7"
 
-  # Bidirectional pins
+  # Bidirectional pins (upper 8 bits of ALU output)
   uio[0]: "ALU_out[8] - ALU Output Bit 8"
   uio[1]: "ALU_out[9] - ALU Output Bit 9"
   uio[2]: "ALU_out[10] - ALU Output Bit 10"
@@ -49,5 +49,5 @@ pinout:
   uio[6]: "ALU_out[14] - ALU Output Bit 14"
   uio[7]: "ALU_out[15] - ALU Output Bit 15"
 
-# Do not change!
+# Do not change this version number!
 yaml_version: 6

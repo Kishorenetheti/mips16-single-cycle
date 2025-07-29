@@ -2,12 +2,12 @@
 
 // TinyTapeout Top Module for 16-bit MIPS Processor
 module tt_um_mips16_single_cycle (
-    input  wire [7:0] ui_in,    // Dedicated inputs
+    input  wire [7:0] ui_in,    // Dedicated inputs (currently unused)
     output wire [7:0] uo_out,   // Dedicated outputs
-    input  wire [7:0] uio_in,   // IOs: Input path
+    input  wire [7:0] uio_in,   // IOs: Input path (currently unused)
     output wire [7:0] uio_out,  // IOs: Output path
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
-    input  wire       ena,      // will go high when the design is enabled
+    input  wire       ena,      // Design enable (currently unused)
     input  wire       clk,      // clock
     input  wire       rst_n     // reset_n - low to reset
 );
@@ -17,37 +17,29 @@ module tt_um_mips16_single_cycle (
   
   // Internal signals from MIPS processor
   wire [15:0] ALU_out;
-  wire [3:0] ALUOp;
-  wire [15:0] Read_data1;
-  wire [15:0] Read_data2;
-  wire [15:0] sign_ext_immediate;
-  wire [3:0] rs, rt, rd;
-  wire [3:0] Write_reg_out;
 
   // Instantiate the MIPS processor
   mips_single_cycle cpu (
     .clk(clk),
     .rst(rst),
-    .ALU_out(ALU_out),
-    .ALUOp(ALUOp),
-    .Read_data1(Read_data1),
-    .Read_data2(Read_data2),
-    .sign_ext_immediate(sign_ext_immediate),
-    .rs(rs),
-    .rt(rt),
-    .rd(rd),
-    .Write_reg_out(Write_reg_out)
+    .ALU_out(ALU_out)
+    // Removed unused outputs to avoid warnings:
+    // .ALUOp(ALUOp),
+    // .Read_data1(Read_data1),
+    // .Read_data2(Read_data2),
+    // .sign_ext_immediate(sign_ext_immediate),
+    // .rs(rs),
+    // .rt(rt),
+    // .rd(rd),
+    // .Write_reg_out(Write_reg_out)
   );
 
   // Map outputs to TinyTapeout pins
-  // You can customize this mapping based on what you want to observe
-  assign uo_out = ALU_out[7:0];  // Lower 8 bits of ALU output
-  
-  // Use bidirectional pins as outputs to show more data
+  assign uo_out = ALU_out[7:0];   // Lower 8 bits of ALU output
   assign uio_out = ALU_out[15:8]; // Upper 8 bits of ALU output
-  assign uio_oe = 8'hFF;          // All bidirectional pins as outputs
+  assign uio_oe = 8'hFF;           // All bidirectional pins as outputs
   
-  // Unused inputs (you can use these for control if needed)
+  // Mark unused inputs to avoid lint warnings
   wire _unused = &{ui_in, uio_in, ena, 1'b0};
 
 endmodule
@@ -58,34 +50,27 @@ module PC(
   input rst,
   input jump,
   input [15:0] jump_address,
-  output wire [15:0] pc_out
+  output reg [15:0] pc_out
 );
 
-  reg [15:0] p_c;
-  wire [15:0] pc_next;
-
-  assign pc_next = (jump) ? jump_address : (p_c + 2);
+  wire [15:0] pc_next = jump ? jump_address : (pc_out + 2);
 
   always @(posedge clk or posedge rst) begin
     if (rst)
-      p_c <= 0;
-    else if (p_c >= 16'd30)  // wrap at last instruction (15*2 = 30)
-      p_c <= 0;
+      pc_out <= 0;
+    else if (pc_out >= 16'd30)  // wrap at last instruction (15*2 = 30)
+      pc_out <= 0;
     else
-      p_c <= pc_next;
+      pc_out <= pc_next;
   end
-
-  assign pc_out = p_c;
-
 endmodule
 
 // Instruction Memory Module
 module instruction_memory(
   input [15:0] p_in,
-  output wire [15:0] instruction
+  output reg [15:0] instruction
 );
-  reg [15:0] instruction1;
-  reg [15:0] rom [15:0];
+  reg [15:0] rom [0:15];
   
   initial begin
     rom[0]  = 16'b0000_0001_0010_0011;  // ADD
@@ -107,13 +92,12 @@ module instruction_memory(
   end
   
   always @(*) begin
+    // Use only 4 bits as index (warning fix)
     if ((p_in >> 1) < 16)
-      instruction1 = rom[p_in >> 1];
+      instruction = rom[(p_in >> 1) & 4'hF];
     else
-      instruction1 = 16'b0000_0000_0000_0000;
+      instruction = 16'b0;
   end
-  
-  assign instruction = instruction1;
 endmodule
 
 // Decoder Module
@@ -129,8 +113,8 @@ module decode(
     rt = 4'b0000;
     rd = 4'b0000;
     im = 4'b0000;
-    jump = 12'b000000000000;
-    opcode = instruction_in[15:12];   
+    jump = 12'b0;
+    opcode = instruction_in[15:12];
 
     case(opcode)
       4'b0000: begin  // ADD
@@ -152,15 +136,15 @@ module decode(
       end
 
       4'b0011: begin  // LW
-        rd = instruction_in[11:8]; // destination register to load into
-        rs = instruction_in[7:4];  // base register
-        im = instruction_in[3:0];  // offset
+        rd = instruction_in[11:8];
+        rs = instruction_in[7:4];
+        im = instruction_in[3:0];
       end
 
       4'b0100: begin  // SW
-        rt = instruction_in[11:8]; // source register to store FROM 
-        rs = instruction_in[7:4];  // base register
-        im = instruction_in[3:0];  // offset
+        rt = instruction_in[11:8];
+        rs = instruction_in[7:4];
+        im = instruction_in[3:0];
       end
 
       4'b0101: begin  // JUMP
@@ -177,6 +161,11 @@ module decode(
         rd = instruction_in[11:8];
         rs = instruction_in[7:4];
         rt = instruction_in[3:0];
+      end
+
+      default: begin
+        // safe default for unknown opcodes
+        rs = 4'b0000; rt = 4'b0000; rd = 4'b0000; im = 4'b0000; jump = 12'b0; opcode = 4'b0000;
       end
     endcase
   end
@@ -278,7 +267,7 @@ module register(
     output reg [15:0] Read_data2
 );
 
-    reg [15:0] register_mem [15:0];
+    reg [15:0] register_mem [0:15];
     
     initial begin
         register_mem[0]  = 16'd10;
@@ -353,13 +342,7 @@ endmodule
 module mips_single_cycle(
     input clk,
     input rst,
-    output wire [15:0] ALU_out,
-    output wire [3:0] ALUOp,
-    output wire [15:0] Read_data1,
-    output wire [15:0] Read_data2,
-    output wire [15:0] sign_ext_immediate,
-    output wire [3:0] rs, rt, rd,
-    output wire [3:0] Write_reg_out
+    output wire [15:0] ALU_out
 );
 
     wire [15:0] pc_out;
@@ -369,6 +352,7 @@ module mips_single_cycle(
     wire RegDst, ALUsrc, MemtoReg, MemWrite, MemRead, RegWrite, jump;
     wire [15:0] Write_data, MemOut;
     wire [3:0] Write_reg;
+    wire [3:0] rs, rt, rd;
 
     // Program Counter
     PC pc_inst (
@@ -420,8 +404,9 @@ module mips_single_cycle(
         .Read_data1(Read_data1),
         .Read_data2(Read_data2)
     );
-    
-    assign sign_ext_immediate = {{12{im[3]}}, im};
+
+    // Sign extend immediate
+    wire [15:0] sign_ext_immediate = {{12{im[3]}}, im};
 
     // ALU
     ALU alu_inst (
@@ -432,7 +417,7 @@ module mips_single_cycle(
         .im(sign_ext_immediate),
         .ALU_out(ALU_out)
     );
-    
+
     // Data Memory
     data_memory dm (
         .clk(clk),
@@ -445,7 +430,7 @@ module mips_single_cycle(
 
     assign Write_data = MemtoReg ? MemOut : ALU_out;
     assign Write_reg = RegDst ? rd : rt;
-    assign Write_reg_out = Write_reg;
+
 endmodule
 
 `default_nettype wire
