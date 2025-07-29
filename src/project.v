@@ -237,6 +237,68 @@ module control_unit(
 
 endmodule
 
+// ALU Module
+module ALU(
+  input [15:0] A, B,
+  input [3:0] ALUOp,
+  output reg [15:0] ALU_out,
+  output Zero
+);
+
+  always @(*) begin
+    case(ALUOp)
+      4'b0000: ALU_out = A + B;      // ADD
+      4'b0001: ALU_out = A - B;      // SUB
+      4'b0010: ALU_out = A + B;      // ADDI
+      4'b0011: ALU_out = A + B;      // LW (address calculation)
+      4'b0100: ALU_out = A + B;      // SW (address calculation)
+      4'b0110: ALU_out = A ^ B;      // XOR
+      4'b0111: ALU_out = A | B;      // OR
+      default: ALU_out = 16'b0;
+    endcase
+  end
+
+  assign Zero = (ALU_out == 16'b0);
+
+endmodule
+
+// Data Memory Module
+module data_memory(
+  input clk,
+  input MemWrite, MemRead,
+  input [15:0] address,
+  input [15:0] write_data,
+  output reg [15:0] read_data
+);
+
+  reg [15:0] mem [63:0]; // 64 words of memory
+
+  initial begin
+    // Initialize memory with some test values
+    mem[0] = 16'h1234;
+    mem[1] = 16'h5678;
+    mem[2] = 16'h9ABC;
+    mem[3] = 16'hDEF0;
+    // Initialize rest to 0
+    for (integer i = 4; i < 64; i = i + 1) begin
+      mem[i] = 16'h0000;
+    end
+  end
+
+  always @(posedge clk) begin
+    if (MemWrite && address < 64)
+      mem[address] <= write_data;
+  end
+
+  always @(*) begin
+    if (MemRead && address < 64)
+      read_data = mem[address];
+    else
+      read_data = 16'b0;
+  end
+
+endmodule
+
 // MIPS Single Cycle CPU Module
 module mips_single_cycle(
   input clk,
@@ -255,6 +317,9 @@ module mips_single_cycle(
   wire [15:0] instruction;
   wire [15:0] pc;
   wire RegDst, ALUsrc, MemtoReg, MemWrite, MemRead, RegWrite, jump;
+  wire [15:0] write_data, mem_read_data, alu_input_b;
+  wire [3:0] write_reg;
+  wire [15:0] write_data_final;
 
   // Program Counter
   PC pc_inst(
@@ -297,8 +362,73 @@ module mips_single_cycle(
     .ALUOp(ALUOp)
   );
 
-  // Register File (simplified)
+  // Register File
   reg [15:0] reg_file [15:0];
-  wire [3:0] write_reg;
+  
+  // Initialize register file
+  initial begin
+    reg_file[0] = 16'h0000;  // $zero
+    reg_file[1] = 16'h0001;  // $at
+    reg_file[2] = 16'h0002;  // $v0
+    reg_file[3] = 16'h0003;  // $v1
+    reg_file[4] = 16'h0004;  // $a0
+    reg_file[5] = 16'h0005;  // $a1
+    for (integer i = 6; i < 16; i = i + 1) begin
+      reg_file[i] = 16'h0000;
+    end
+  end
 
+  // Register file read
+  assign Read_data1 = reg_file[rs];
+  assign Read_data2 = reg_file[rt];
+
+  // Sign extend immediate
+  assign sign_ext_immediate = {{12{im[3]}}, im};
+
+  // ALU input B mux
+  assign alu_input_b = ALUsrc ? sign_ext_immediate : Read_data2;
+
+  // ALU
+  ALU alu_inst(
+    .A(Read_data1),
+    .B(alu_input_b),
+    .ALUOp(ALUOp),
+    .ALU_out(ALU_out),
+    .Zero()
+  );
+
+  // Data Memory
+  data_memory dmem(
+    .clk(clk),
+    .MemWrite(MemWrite),
+    .MemRead(MemRead),
+    .address(ALU_out[5:0]), // Use lower 6 bits for address
+    .write_data(Read_data2),
+    .read_data(mem_read_data)
+  );
+
+  // Write register mux
   assign write_reg = RegDst ? rd : rt;
+  assign Write_reg_out = write_reg;
+
+  // Write data mux
+  assign write_data_final = MemtoReg ? mem_read_data : ALU_out;
+
+  // Register file write
+  always @(posedge clk) begin
+    if (rst) begin
+      reg_file[0] <= 16'h0000;  // $zero always 0
+      reg_file[1] <= 16'h0001;
+      reg_file[2] <= 16'h0002;
+      reg_file[3] <= 16'h0003;
+      reg_file[4] <= 16'h0004;
+      reg_file[5] <= 16'h0005;
+      for (integer i = 6; i < 16; i = i + 1) begin
+        reg_file[i] <= 16'h0000;
+      end
+    end else if (RegWrite && write_reg != 0) begin // Don't write to $zero
+      reg_file[write_reg] <= write_data_final;
+    end
+  end
+
+endmodule
