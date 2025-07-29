@@ -95,15 +95,16 @@ endmodule
 // Decoder Module
 module decode(
   input [15:0] instruction_in,
-  output reg [3:0] rs, rt, opcode, rd, im
+  output reg [3:0] rs, rt, rd, im
 );
+
+  wire [3:0] opcode = instruction_in[15:12];
 
   always @(*) begin
     rs = 4'b0000;
     rt = 4'b0000;
     rd = 4'b0000;
     im = 4'b0000;
-    opcode = instruction_in[15:12];   
 
     case(opcode)
       4'b0000: begin
@@ -239,7 +240,7 @@ module mips_single_cycle(
 );
 
   wire [15:0] instruction;
-  wire [15:0] pc;
+  wire [3:0] pc_addr;  // Only need 4 bits for PC address
   wire RegDst, ALUsrc, MemtoReg, MemWrite, MemRead, RegWrite, jump;
   wire [15:0] mem_read_data, alu_input_b;
   wire [3:0] write_reg;
@@ -248,17 +249,20 @@ module mips_single_cycle(
   wire [15:0] sign_ext_immediate;
   wire [3:0] rs, rt, rd, im;
   wire [3:0] ALUOp;
+  wire [15:0] pc_full;  // Full PC for jump calculations
 
   PC pc_inst(
     .clk(clk),
     .rst(rst),
     .jump(jump),
     .jump_address({4'b0, instruction[11:0]}),
-    .pc_out(pc)
+    .pc_out(pc_full)
   );
 
+  assign pc_addr = pc_full[3:0];  // Extract only the bits we need
+
   instruction_memory imem(
-    .p_in(pc[3:0]),  // Only pass lower 4 bits
+    .p_in(pc_addr),
     .instruction(instruction)
   );
 
@@ -267,7 +271,6 @@ module mips_single_cycle(
     .rs(rs),
     .rt(rt),
     .rd(rd),
-    .opcode(),  // Not connected since we use instruction[15:12] directly
     .im(im)
   );
 
