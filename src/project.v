@@ -239,17 +239,7 @@ module mips_single_cycle(
   output [15:0] ALU_out
 );
 
-  wire [15:0] instruction;
-  wire [15:0] pc_full;  // Full PC output from PC module
-  wire [3:0] pc_addr;   // Only the 4 bits we need for instruction memory
-  wire RegDst, ALUsrc, MemtoReg, MemWrite, MemRead, RegWrite, jump;
-  wire [15:0] mem_read_data, alu_input_b;
-  wire [3:0] write_reg;
-  wire [15:0] write_data_final;
-  wire [15:0] Read_data1, Read_data2;
-  wire [15:0] sign_ext_immediate;
-  wire [3:0] rs, rt, rd, im;
-  wire [3:0] ALUOp;
+:0] ALUOp;
 
   // Extract only the bits we need from PC
   assign pc_addr = pc_full[3:0];
