@@ -1,11 +1,25 @@
-.DS_Store
-.idea
+# Build files
+runs/
+*.log
 *.vcd
-runs
-tt_submission
-src/user_config.json
-src/config_merged.json
-test/sim_build
-test/__pycache__/
-test/results.xml
-test/gate_level_netlist.v
+*.fst
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.bak
