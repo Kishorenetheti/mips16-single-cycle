@@ -240,9 +240,7 @@ module mips_single_cycle(
 );
 
   wire [15:0] instruction;
-  /* verilator lint_off UNUSEDSIGNAL */
   wire [15:0] pc_full;
-  /* verilator lint_on UNUSEDSIGNAL */
   wire [3:0] pc_addr;
   wire [3:0] rs, rt, rd, im;
   wire RegDst, ALUsrc, MemtoReg, MemWrite, MemRead, RegWrite, jump;
@@ -254,8 +252,9 @@ module mips_single_cycle(
   wire [15:0] write_data_final;
   wire [3:0] ALUOp;
 
-  // Extract only the bits we need from PC
+  // Extract only the bits we need from PC and handle unused bits
   assign pc_addr = pc_full[3:0];
+  wire _unused_pc = &{pc_full[15:4], 1'b0};
 
   PC pc_inst(
     .clk(clk),
