@@ -1,18 +1,17 @@
-# Tiny Tapeout project information
+top_module: "tt_um_reciprocity"
+
 project:
-  top_module: "tt_um_mips16_processor"   
   title: "MIPS16 Single-Cycle Processor"
-  author: "Your Name"        # Replace with your name
+  author: "Kishore Netheti"
   description: "A 16-bit MIPS single-cycle processor implementation with 8 instruction types, 16 registers, and 256-word data memory"
   language: "Verilog"
   clock_hz: 10000000         # 10MHz target clock frequency
 
-# Detailed documentation  
 documentation: 
-  author: "Your Name"        # Replace with your name
+  author: "Kishore Netheti"
   title: "MIPS16 Single-Cycle Processor"
   description: |
-    This project implements a complete 16-bit MIPS single-cycle processor in Verilog. 
+    This project implements a complete 16-bit MIPS single-cycle processor in Verilog.
     
     **Architecture Features:**
     - 16-bit data path and instruction width
@@ -23,97 +22,62 @@ documentation:
     - 8 supported instruction types
     
     **Instruction Set:**
-    - ADD: Register addition (R-type)
-    - SUB: Register subtraction (R-type) 
-    - ADDI: Add immediate (I-type)
-    - LW: Load word from memory (I-type)
-    - SW: Store word to memory (I-type)
-    - XOR: Bitwise XOR (R-type)
-    - OR: Bitwise OR (R-type)
-    - JUMP: Unconditional jump (J-type)
+    - ADD, SUB, ADDI, LW, SW, XOR, OR, JUMP
     
     **Processor Components:**
-    1. Program Counter (PC) - Manages instruction sequencing
-    2. Instruction Memory - 16-word ROM with sample program
-    3. Instruction Decoder - Extracts opcode and operands
-    4. Control Unit - Generates control signals
-    5. Register File - 16 x 16-bit registers
-    6. ALU - Arithmetic and logic operations
-    7. Data Memory - 256-word RAM
-    8. Top-level integration module
-    
-    **Sample Program:**
-    The processor comes with a pre-loaded 16-instruction program that demonstrates:
-    - Arithmetic operations (ADD, SUB, ADDI)
-    - Memory operations (LW, SW)
-    - Logic operations (XOR, OR)
-    - Control flow (JUMP back to start)
-    
-    **Tiny Tapeout Interface:**
-    - Outputs: ALU result (16-bit split across uo_out and uio_out)
-    - Clock: Standard Tiny Tapeout clock input
-    - Reset: Active-low reset (rst_n)
-    
-    This processor is ideal for educational purposes and demonstrates fundamental
-    computer architecture concepts in a fabricated silicon implementation.
+    - Program Counter (PC)
+    - Instruction Memory
+    - Decoder
+    - Control Unit
+    - Register File
+    - ALU
+    - Data Memory
+    - Top-level Integration
 
   how_it_works: |
     The MIPS16 processor follows a classic single-cycle datapath:
-    
-    1. **Fetch**: PC provides address to instruction memory
-    2. **Decode**: Instruction decoder extracts fields (opcode, registers, immediate)
-    3. **Execute**: Control unit configures datapath, ALU performs operation
-    4. **Memory**: Data memory accessed for LW/SW instructions
-    5. **Writeback**: Results written to register file
-    6. **Update PC**: Program counter incremented or jumped
-    
-    All operations complete in a single clock cycle. The processor automatically
-    wraps to address 0 after executing the last instruction, creating an infinite loop.
+    1. **Fetch** instruction from instruction memory
+    2. **Decode** opcode and operands
+    3. **Execute** via ALU
+    4. **Access Memory** if needed
+    5. **Writeback** results
+    6. **Update PC** (or jump)
 
   how_to_test: |
-    1. Apply reset (rst_n = 0) to initialize the processor
-    2. Release reset (rst_n = 1) and apply clock
-    3. Monitor outputs (uo_out and uio_out) to see ALU results
-    4. The processor will execute the pre-loaded program continuously
-    5. ALU output changes every clock cycle as different instructions execute
-    
-    Expected behavior:
-    - Clock cycle 1: ADD operation result
-    - Clock cycle 2: SUB operation result  
-    - Clock cycle 3: ADDI operation result
-    - ... and so on through the 16-instruction program
-    - Clock cycle 16: JUMP back to start, cycle repeats
+    1. Apply reset (rst_n = 0), then set rst_n = 1
+    2. Provide clock
+    3. Observe uo_out and uio_out for ALU results
+    4. 16 instructions execute and loop
 
   external_hw: "None required - fully self-contained processor"
 
-# Pin assignments for Tiny Tapeout
 pinout:
   uo_out:
     - bit 7: "ALU_out[7] - ALU result bit 7"
-    - bit 6: "ALU_out[6] - ALU result bit 6" 
+    - bit 6: "ALU_out[6] - ALU result bit 6"
     - bit 5: "ALU_out[5] - ALU result bit 5"
     - bit 4: "ALU_out[4] - ALU result bit 4"
     - bit 3: "ALU_out[3] - ALU result bit 3"
     - bit 2: "ALU_out[2] - ALU result bit 2"
     - bit 1: "ALU_out[1] - ALU result bit 1"
     - bit 0: "ALU_out[0] - ALU result bit 0"
-    
+
   uio_out:
     - bit 7: "ALU_out[15] - ALU result bit 15 (MSB)"
     - bit 6: "ALU_out[14] - ALU result bit 14"
-    - bit 5: "ALU_out[13] - ALU result bit 13" 
+    - bit 5: "ALU_out[13] - ALU result bit 13"
     - bit 4: "ALU_out[12] - ALU result bit 12"
     - bit 3: "ALU_out[11] - ALU result bit 11"
     - bit 2: "ALU_out[10] - ALU result bit 10"
     - bit 1: "ALU_out[9] - ALU result bit 9"
     - bit 0: "ALU_out[8] - ALU result bit 8"
-    
+
   ui_in:
-    - bit 7: "Reserved for future use"
-    - bit 6: "Reserved for future use"
-    - bit 5: "Reserved for future use" 
-    - bit 4: "Reserved for future use"
-    - bit 3: "Reserved for future use"
-    - bit 2: "Reserved for future use"
-    - bit 1: "Reserved for future use"
-    - bit 0: "Reserved for future use"
+    - bit 7: "Reserved"
+    - bit 6: "Reserved"
+    - bit 5: "Reserved"
+    - bit 4: "Reserved"
+    - bit 3: "Reserved"
+    - bit 2: "Reserved"
+    - bit 1: "Reserved"
+    - bit 0: "Reserved"
