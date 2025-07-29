@@ -1,5 +1,6 @@
 # Tiny Tapeout project information
 project:
+  top_module: "tt_um_mips16_processor"   
   title: "MIPS16 Single-Cycle Processor"
   author: "Your Name"        # Replace with your name
   description: "A 16-bit MIPS single-cycle processor implementation with 8 instruction types, 16 registers, and 256-word data memory"
