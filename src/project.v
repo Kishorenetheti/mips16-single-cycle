@@ -92,7 +92,7 @@ module instruction_memory(
 
 endmodule
 
-// Decoder Module
+// Decoder Module - FIXED: Removed opcode output
 module decode(
   input [15:0] instruction_in,
   output reg [3:0] rs, rt, rd, im
@@ -232,7 +232,7 @@ module data_memory(
   end
 endmodule
 
-// MIPS Single Cycle CPU Module
+// MIPS Single Cycle CPU Module - FIXED: Proper signal declarations and connections
 module mips_single_cycle(
   input clk,
   input rst,
@@ -240,7 +240,8 @@ module mips_single_cycle(
 );
 
   wire [15:0] instruction;
-  wire [3:0] pc_addr;  // Only need 4 bits for PC address
+  wire [15:0] pc_full;  // Full PC output from PC module
+  wire [3:0] pc_addr;   // Only the 4 bits we need for instruction memory
   wire RegDst, ALUsrc, MemtoReg, MemWrite, MemRead, RegWrite, jump;
   wire [15:0] mem_read_data, alu_input_b;
   wire [3:0] write_reg;
@@ -249,7 +250,9 @@ module mips_single_cycle(
   wire [15:0] sign_ext_immediate;
   wire [3:0] rs, rt, rd, im;
   wire [3:0] ALUOp;
-  wire [15:0] pc_full;  // Full PC for jump calculations
+
+  // Extract only the bits we need from PC
+  assign pc_addr = pc_full[3:0];
 
   PC pc_inst(
     .clk(clk),
@@ -259,13 +262,12 @@ module mips_single_cycle(
     .pc_out(pc_full)
   );
 
-  assign pc_addr = pc_full[3:0];  // Extract only the bits we need
-
   instruction_memory imem(
     .p_in(pc_addr),
     .instruction(instruction)
   );
 
+  // FIXED: Removed the empty opcode connection
   decode dec(
     .instruction_in(instruction),
     .rs(rs),
