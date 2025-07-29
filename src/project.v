@@ -1,361 +1,173 @@
 `default_nettype none
 
-// Top-level TinyTapeout Module for 16-bit MIPS Processor
-module tt_um_mips16_single_cycle (
-    input  wire [7:0] ui_in,    // Dedicated inputs
-    output wire [7:0] uo_out,   // Dedicated outputs
-    input  wire [7:0] uio_in,   // IOs: Input path
-    output wire [7:0] uio_out,  // IOs: Output path
-    output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
-    input  wire       ena,      // will go high when the design is enabled
-    input  wire       clk,      // clock
-    input  wire       rst_n     // reset_n - low to reset
+module tt_um_mips16_minimal (
+    input  wire clk,
+    input  wire rst_n,
+    output wire [7:0] uo_out
 );
 
-  wire rst = !rst_n;
-  wire [15:0] ALU_out;
+  wire rst = ~rst_n;
 
-  // Instantiate MIPS processor
-  mips_single_cycle cpu (
+  wire [15:0] alu_out;
+
+  // Simple CPU instance
+  mips_cpu_minimal cpu(
     .clk(clk),
     .rst(rst),
-    .ALU_out(ALU_out)
+    .alu_out(alu_out)
   );
 
-  // Map outputs to TinyTapeout pins
-  assign uo_out = ALU_out[7:0];    // Lower 8 bits
-  assign uio_out = ALU_out[15:8];  // Upper 8 bits
-  assign uio_oe = 8'hFF;           // All bidir pins output enabled
-  
-  // Avoid unused input warnings
-  wire _unused = &{ui_in, uio_in, ena, 1'b0};
+  assign uo_out = alu_out[7:0];
 
 endmodule
 
-// Program Counter Module
+// Program Counter
 module PC(
   input clk,
   input rst,
   input jump,
-  input [15:0] jump_address,
-  output wire [15:0] pc_out
+  input [3:0] jump_addr,
+  output reg [3:0] pc_out
 );
 
-  reg [15:0] p_c;
-  wire [15:0] pc_next;
-
-  assign pc_next = (jump) ? jump_address : (p_c + 2);
-
-  always @(posedge clk) begin
+  always @(posedge clk or posedge rst) begin
     if (rst)
-      p_c <= 16'd0;
-    else if (p_c >= 16'd30)
-      p_c <= 16'd0;
+      pc_out <= 4'd0;
+    else if (jump)
+      pc_out <= jump_addr;
     else
-      p_c <= pc_next;
+      pc_out <= pc_out + 1;
   end
-
-  assign pc_out = p_c;
 
 endmodule
 
-// Instruction Memory Module (16 x 16-bit ROM)
+// Instruction Memory: 8 instructions only
 module instruction_memory(
-  input [15:0] p_in,
-  output wire [15:0] instruction
-);
-  reg [15:0] rom [0:15];
-  reg [15:0] instruction1;
-
-  initial begin
-    rom[0]  = 16'b0000_0001_0010_0011;  // ADD
-    rom[1]  = 16'b0001_0010_0011_0100;  // SUB
-    rom[2]  = 16'b0010_0011_0100_0101;  // ADDI
-    rom[3]  = 16'b0011_0100_0101_0011;  // LW
-    rom[4]  = 16'b0100_0101_0100_0011;  // SW
-    rom[5]  = 16'b0110_0100_0011_0011;  // XOR
-    rom[6]  = 16'b0111_0000_0000_0011;  // OR
-    rom[7]  = 16'b0010_0010_0010_1111;  // ADDI
-    rom[8]  = 16'b0000_0001_0001_0001;  // ADD
-    rom[9]  = 16'b0001_0011_0001_0000;  // SUB
-    rom[10] = 16'b0011_0001_0010_0100;  // LW
-    rom[11] = 16'b0100_0010_0011_0100;  // SW
-    rom[12] = 16'b0010_0011_0000_0001;  // ADDI
-    rom[13] = 16'b0001_0001_0000_0001;  // SUB
-    rom[14] = 16'b0111_0000_0101_0100;  // OR
-    rom[15] = 16'b0101_0000_0000_0000;  // JUMP (to 0)
-  end
-
-  always @(*) begin
-    instruction1 = rom[p_in[3:0]];
-  end
-
-  assign instruction = instruction1;
-endmodule
-
-// Decoder Module
-module decode(
-  input [15:0] instruction_in,
-  output reg [3:0] rs, rt, opcode, rd, im,
-  output reg [11:0] jump
+  input [3:0] addr,
+  output reg [15:0] instruction
 );
 
   always @(*) begin
-    rs = 4'b0000;
-    rt = 4'b0000;
-    rd = 4'b0000;
-    im = 4'b0000;
-    jump = 12'b000000000000;
-    opcode = instruction_in[15:12];
-
-    case(opcode)
-      4'b0000: begin
-        rd = instruction_in[11:8];
-        rs = instruction_in[7:4];
-        rt = instruction_in[3:0];
-      end
-      4'b0001: begin
-        rd = instruction_in[11:8];
-        rs = instruction_in[7:4];
-        rt = instruction_in[3:0];
-      end
-      4'b0010: begin
-        rd = instruction_in[11:8];
-        rs = instruction_in[7:4];
-        im = instruction_in[3:0];
-      end
-      4'b0011: begin
-        rd = instruction_in[11:8];
-        rs = instruction_in[7:4];
-        im = instruction_in[3:0];
-      end
-      4'b0100: begin
-        rt = instruction_in[11:8];
-        rs = instruction_in[7:4];
-        im = instruction_in[3:0];
-      end
-      4'b0101: begin
-        jump = instruction_in[11:0];
-      end
-      4'b0110: begin
-        rd = instruction_in[11:8];
-        rs = instruction_in[7:4];
-        rt = instruction_in[3:0];
-      end
-      4'b0111: begin
-        rd = instruction_in[11:8];
-        rs = instruction_in[7:4];
-        rt = instruction_in[3:0];
-      end
-      default: begin
-        // default no action
-      end
-    endcase
-  end
-endmodule
-
-// Control Unit Module
-module control_unit(
-    input [3:0] opcode,
-    output reg RegDst, ALUsrc, MemtoReg, MemWrite, MemRead, RegWrite, jump,
-    output reg [3:0] ALUOp
-);
-
-  always @(*) begin
-    RegDst = 1'b0; ALUsrc = 1'b0; MemtoReg = 1'b0; RegWrite = 1'b0;
-    MemWrite = 1'b0; MemRead = 1'b0; jump = 1'b0; ALUOp = 4'b0000;
-
-    case (opcode)
-      4'b0000: begin RegDst=1; ALUsrc=0; MemtoReg=0; RegWrite=1; ALUOp=4'b0000; end
-      4'b0001: begin RegDst=1; ALUsrc=0; MemtoReg=0; RegWrite=1; ALUOp=4'b0001; end
-      4'b0010: begin RegDst=0; ALUsrc=1; MemtoReg=0; RegWrite=1; ALUOp=4'b0010; end
-      4'b0011: begin RegDst=0; ALUsrc=1; MemtoReg=1; RegWrite=1; MemRead=1; ALUOp=4'b0011; end
-      4'b0100: begin MemWrite=1; ALUsrc=1; ALUOp=4'b0100; end
-      4'b0101: begin jump=1; end
-      4'b0110: begin RegDst=1; ALUsrc=0; RegWrite=1; ALUOp=4'b0110; end
-      4'b0111: begin RegDst=1; ALUsrc=0; RegWrite=1; ALUOp=4'b0111; end
-      default: ;
+    case(addr)
+      4'd0: instruction = 16'h0123; // ADD example
+      4'd1: instruction = 16'h1234; // SUB example
+      4'd2: instruction = 16'h2345; // ADDI example
+      4'd3: instruction = 16'h3456; // LW example
+      4'd4: instruction = 16'h4567; // SW example
+      4'd5: instruction = 16'h5678; // OR example
+      4'd6: instruction = 16'h6789; // XOR example
+      4'd7: instruction = 16'h7000; // JUMP to 0
+      default: instruction = 16'h0000;
     endcase
   end
 
 endmodule
 
-// ALU Module
-module ALU(
-  input [15:0] A, B,
-  input [3:0] ALUOp,
-  output reg [15:0] ALU_out
-);
-
-  always @(*) begin
-    case(ALUOp)
-      4'b0000: ALU_out = A + B;      // ADD
-      4'b0001: ALU_out = A - B;      // SUB
-      4'b0010: ALU_out = A + B;      // ADDI
-      4'b0011: ALU_out = A + B;      // LW addr calc
-      4'b0100: ALU_out = A + B;      // SW addr calc
-      4'b0110: ALU_out = A ^ B;      // XOR
-      4'b0111: ALU_out = A | B;      // OR
-      default: ALU_out = 16'b0;
-    endcase
-  end
-
-endmodule
-
-// Data Memory Module (reduced size: 16 words)
-module data_memory(
+// Register File: only 4 registers
+module reg_file(
   input clk,
-  input MemWrite, MemRead,
-  input [15:0] address,
+  input rst,
+  input [1:0] rs,
+  input [1:0] rt,
+  input [1:0] rd,
   input [15:0] write_data,
-  output reg [15:0] read_data
+  input reg_write,
+  output [15:0] read_data1,
+  output [15:0] read_data2
 );
 
-  reg [15:0] mem [0:15]; // 16 words now
+  reg [15:0] regs [0:3];
   integer i;
-  wire [3:0] addr_index;
 
-  assign addr_index = address[3:0]; // 4-bit address now
-
-  initial begin
-    mem[0] = 16'h1234;
-    mem[1] = 16'h5678;
-    mem[2] = 16'h9ABC;
-    mem[3] = 16'hDEF0;
-    for (i = 4; i < 16; i = i + 1) begin
-      mem[i] = 16'h0000;
+  // reset all registers
+  always @(posedge clk or posedge rst) begin
+    if (rst) begin
+      for (i=0; i<4; i=i+1)
+        regs[i] <= 16'd0;
+    end else if (reg_write) begin
+      regs[rd] <= write_data;
     end
   end
 
-  always @(posedge clk) begin
-    if (MemWrite)
-      mem[addr_index] <= write_data;
-  end
+  assign read_data1 = regs[rs];
+  assign read_data2 = regs[rt];
+
+endmodule
+
+// ALU: only ADD and SUB for now
+module ALU(
+  input [15:0] A,
+  input [15:0] B,
+  input alu_op, // 0=ADD, 1=SUB
+  output reg [15:0] alu_out
+);
 
   always @(*) begin
-    if (MemRead)
-      read_data = mem[addr_index];
-    else
-      read_data = 16'b0;
+    alu_out = alu_op ? (A - B) : (A + B);
   end
 
 endmodule
 
-// MIPS Single Cycle CPU Module (register file reduced to 8 registers)
-module mips_single_cycle(
+// Minimal CPU module
+module mips_cpu_minimal(
   input clk,
   input rst,
-  output [15:0] ALU_out
+  output [15:0] alu_out
 );
 
+  wire [3:0] pc;
   wire [15:0] instruction;
-  wire [15:0] pc;
-  wire RegDst, ALUsrc, MemtoReg, MemWrite, MemRead, RegWrite, jump;
-  wire [15:0] mem_read_data, alu_input_b;
-  wire [3:0] write_reg;
-  wire [15:0] write_data_final;
-  wire [15:0] Read_data1, Read_data2;
-  wire [3:0] rs, rt, rd, im;
-  wire [3:0] ALUOp;
+  wire [1:0] rs, rt, rd;
+  wire alu_op;
+  wire reg_write;
 
-  // Program Counter
+  wire [15:0] reg_read1, reg_read2;
+  wire [15:0] alu_input_b;
+
+  // Program counter instance
   PC pc_inst(
     .clk(clk),
     .rst(rst),
-    .jump(jump),
-    .jump_address({4'b0000, instruction[11:0]}),
+    .jump(1'b0),
+    .jump_addr(4'd0),
     .pc_out(pc)
   );
 
-  // Instruction Memory
+  // Instruction memory instance
   instruction_memory imem(
-    .p_in(pc),
+    .addr(pc),
     .instruction(instruction)
   );
 
-  // Decode instruction
-  wire [11:0] jump_addr_unused;
-  decode dec(
-    .instruction_in(instruction),
+  // Simple instruction decode:
+  // instruction format: [15:12]=opcode, [11:10]=rd, [9:8]=rs, [7:6]=rt, [5:0]=imm (ignored here)
+  assign alu_op = instruction[15];   // MSB as ALU op: 0=ADD, 1=SUB
+  assign rd = instruction[11:10];
+  assign rs = instruction[9:8];
+  assign rt = instruction[7:6];
+  assign reg_write = 1'b1; // always write back for simplicity
+
+  // Register file
+  reg_file rf(
+    .clk(clk),
+    .rst(rst),
     .rs(rs),
     .rt(rt),
     .rd(rd),
-    .opcode(ALUOp),  // pass ALUOp here for control
-    .im(im),
-    .jump(jump_addr_unused)
+    .write_data(alu_out),
+    .reg_write(reg_write),
+    .read_data1(reg_read1),
+    .read_data2(reg_read2)
   );
 
-  // Control Unit
-  control_unit cu(
-    .opcode(ALUOp),
-    .RegDst(RegDst),
-    .ALUsrc(ALUsrc),
-    .MemtoReg(MemtoReg),
-    .MemWrite(MemWrite),
-    .MemRead(MemRead),
-    .RegWrite(RegWrite),
-    .jump(jump),
-    .ALUOp(ALUOp)
-  );
+  assign alu_input_b = reg_read2;
 
-  // Register File (8 registers)
-  reg [15:0] reg_file [0:7];
-  integer j;
-
-  initial begin
-    reg_file[0] = 16'h0000;
-    reg_file[1] = 16'h0001;
-    reg_file[2] = 16'h0002;
-    reg_file[3] = 16'h0003;
-    reg_file[4] = 16'h0004;
-    reg_file[5] = 16'h0005;
-    reg_file[6] = 16'h0000;
-    reg_file[7] = 16'h0000;
-  end
-
-  // Read registers with protection against out-of-range index
-  assign Read_data1 = (rs < 8) ? reg_file[rs] : 16'h0000;
-  assign Read_data2 = (rt < 8) ? reg_file[rt] : 16'h0000;
-
-  // Sign extend immediate
-  wire [15:0] sign_ext_immediate = {{12{im[3]}}, im};
-
-  // ALU input mux
-  assign alu_input_b = ALUsrc ? sign_ext_immediate : Read_data2;
-
-  // ALU instance
-  ALU alu_inst(
-    .A(Read_data1),
+  // ALU
+  ALU alu(
+    .A(reg_read1),
     .B(alu_input_b),
-    .ALUOp(ALUOp),
-    .ALU_out(ALU_out)
+    .alu_op(alu_op),
+    .alu_out(alu_out)
   );
-
-  // Data Memory
-  data_memory dmem(
-    .clk(clk),
-    .MemWrite(MemWrite),
-    .MemRead(MemRead),
-    .address(ALU_out),
-    .write_data(Read_data2),
-    .read_data(mem_read_data)
-  );
-
-  // Write register mux
-  assign write_reg = RegDst ? rd : rt;
-
-  // Write data mux
-  assign write_data_final = MemtoReg ? mem_read_data : ALU_out;
-
-  // Write back
-  integer k;
-  always @(posedge clk) begin
-    if (rst) begin
-      for (k = 0; k < 8; k = k + 1) reg_file[k] <= 16'h0000;
-    end else if (RegWrite && (write_reg < 8)) begin
-      if (write_reg != 4'b0000)  // avoid writing $zero
-        reg_file[write_reg] <= write_data_final;
-    end
-  end
 
 endmodule
