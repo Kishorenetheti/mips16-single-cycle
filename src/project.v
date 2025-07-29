@@ -252,9 +252,10 @@ module mips_single_cycle(
   wire [15:0] write_data_final;
   wire [3:0] ALUOp;
 
-  // Extract only the bits we need from PC and handle unused bits
+  // Extract only the bits we need from PC
   assign pc_addr = pc_full[3:0];
-  wire _unused_pc = &{pc_full[15:4], 1'b0};
+  
+  wire _unused_pc_bits = &{pc_full[15:4], 1'b0};
 
   PC pc_inst(
     .clk(clk),
