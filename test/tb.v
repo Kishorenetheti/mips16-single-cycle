@@ -28,4 +28,14 @@ module tb;
   initial clk = 0;
   always #5 clk = ~clk;  // 10ns clock period (100MHz)
 
+  // Initial stimulus
+  initial begin
+    rst_n = 0;
+    ena = 1;
+    ui_in = 8'b0;
+    uio_in = 8'b0;
+    #20;
+    rst_n = 1;
+  end
+
 endmodule
