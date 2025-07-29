@@ -1,6 +1,6 @@
 `default_nettype none
 
-// TinyTapeout Top Module for 16-bit MIPS Processor
+// Top-level TinyTapeout Module for 16-bit MIPS Processor
 module tt_um_mips16_single_cycle (
     input  wire [7:0] ui_in,    // Dedicated inputs
     output wire [7:0] uo_out,   // Dedicated outputs
@@ -225,4 +225,121 @@ module control_unit(
 
       4'b0111: begin  // OR
         RegDst = 1; ALUsrc = 0; MemtoReg = 0; RegWrite = 1;
-        MemWrite
+        MemWrite = 0; MemRead = 0; jump = 0; ALUOp = 4'b0111;
+      end
+
+      default: begin
+        RegDst = 0; ALUsrc = 0; MemtoReg = 0; RegWrite = 0;
+        MemWrite = 0; MemRead = 0; jump = 0; ALUOp = 4'b0000;
+      end
+    endcase
+  end
+
+endmodule
+
+// MIPS Single Cycle CPU Module
+module mips_single_cycle(
+  input clk,
+  input rst,
+  output [15:0] ALU_out,
+  output [3:0] ALUOp,
+  output [15:0] Read_data1,
+  output [15:0] Read_data2,
+  output [15:0] sign_ext_immediate,
+  output [3:0] rs,
+  output [3:0] rt,
+  output [3:0] rd,
+  output [3:0] Write_reg_out
+);
+
+  wire [15:0] instruction;
+  wire [15:0] pc;
+  wire RegDst, ALUsrc, MemtoReg, MemWrite, MemRead, RegWrite, jump;
+
+  // Program Counter
+  PC pc_inst(
+    .clk(clk),
+    .rst(rst),
+    .jump(jump),
+    .jump_address({4'b0000, instruction[11:0]}), // extend jump address to 16 bits
+    .pc_out(pc)
+  );
+
+  // Instruction Memory
+  instruction_memory imem(
+    .p_in(pc),
+    .instruction(instruction)
+  );
+
+  // Decode instruction
+  wire [3:0] opcode, im;
+  wire [11:0] jump_addr;
+  decode dec(
+    .instruction_in(instruction),
+    .rs(rs),
+    .rt(rt),
+    .rd(rd),
+    .opcode(opcode),
+    .im(im),
+    .jump(jump_addr)
+  );
+
+  // Control Unit
+  control_unit cu(
+    .opcode(opcode),
+    .RegDst(RegDst),
+    .ALUsrc(ALUsrc),
+    .MemtoReg(MemtoReg),
+    .MemWrite(MemWrite),
+    .MemRead(MemRead),
+    .RegWrite(RegWrite),
+    .jump(jump),
+    .ALUOp(ALUOp)
+  );
+
+  // Register File (simplified)
+  reg [15:0] reg_file [15:0];
+  wire [3:0] write_reg;
+
+  assign write_reg = RegDst ? rd : rt;
+  assign Write_reg_out = write_reg;
+
+  // Read registers
+  assign Read_data1 = reg_file[rs];
+  assign Read_data2 = reg_file[rt];
+
+  // Sign extend immediate
+  assign sign_ext_immediate = {{12{im[3]}}, im};
+
+  // ALU input mux
+  wire [15:0] alu_input2 = ALUsrc ? sign_ext_immediate : Read_data2;
+
+  // ALU
+  reg [15:0] alu_result;
+  always @(*) begin
+    case(ALUOp)
+      4'b0000: alu_result = Read_data1 + alu_input2;        // ADD
+      4'b0001: alu_result = Read_data1 - alu_input2;        // SUB
+      4'b0010: alu_result = Read_data1 + alu_input2;        // ADDI same as ADD
+      4'b0011: alu_result = Read_data1 + alu_input2;        // LW address calc
+      4'b0100: alu_result = Read_data1 + alu_input2;        // SW address calc
+      4'b0110: alu_result = Read_data1 ^ alu_input2;        // XOR
+      4'b0111: alu_result = Read_data1 | alu_input2;        // OR
+      default: alu_result = 16'b0;
+    endcase
+  end
+
+  assign ALU_out = alu_result;
+
+  // Write back to register file (simplified synchronous write)
+  always @(posedge clk or posedge rst) begin
+    if (rst) begin
+      integer i;
+      for (i=0; i<16; i=i+1)
+        reg_file[i] <= 16'b0;
+    end else if (RegWrite) begin
+      reg_file[write_reg] <= MemtoReg ? /* memory data, if you have memory */ 16'b0 : alu_result;
+    end
+  end
+
+endmodule
