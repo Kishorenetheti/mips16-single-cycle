@@ -1,83 +1,39 @@
-top_module: "tt_um_reciprocity"
-
 project:
   title: "MIPS16 Single-Cycle Processor"
   author: "Kishore Netheti"
-  description: "A 16-bit MIPS single-cycle processor implementation with 8 instruction types, 16 registers, and 256-word data memory"
+  description: "A 16-bit MIPS single-cycle processor implementation"
+  top_module: "tt_um_mips16_processor"
   language: "Verilog"
-  clock_hz: 10000000         # 10MHz target clock frequency
+  clock_hz: 10000000
 
-documentation: 
+documentation:
   author: "Kishore Netheti"
   title: "MIPS16 Single-Cycle Processor"
   description: |
-    This project implements a complete 16-bit MIPS single-cycle processor in Verilog.
-    
-    **Architecture Features:**
-    - 16-bit data path and instruction width
-    - Single-cycle execution model
-    - 16 general-purpose registers (R0-R15)
-    - 16-word instruction memory with pre-loaded program
-    - 256-word data memory
-    - 8 supported instruction types
-    
-    **Instruction Set:**
-    - ADD, SUB, ADDI, LW, SW, XOR, OR, JUMP
-    
-    **Processor Components:**
-    - Program Counter (PC)
-    - Instruction Memory
-    - Decoder
-    - Control Unit
-    - Register File
-    - ALU
-    - Data Memory
-    - Top-level Integration
-
+    A 16-bit MIPS processor designed for Tiny Tapeout.
   how_it_works: |
-    The MIPS16 processor follows a classic single-cycle datapath:
-    1. **Fetch** instruction from instruction memory
-    2. **Decode** opcode and operands
-    3. **Execute** via ALU
-    4. **Access Memory** if needed
-    5. **Writeback** results
-    6. **Update PC** (or jump)
-
+    Fetch, Decode, Execute, Memory, Writeback all in one cycle.
   how_to_test: |
-    1. Apply reset (rst_n = 0), then set rst_n = 1
-    2. Provide clock
-    3. Observe uo_out and uio_out for ALU results
-    4. 16 instructions execute and loop
-
-  external_hw: "None required - fully self-contained processor"
+    Apply clock and reset; observe ALU output.
+  external_hw: "None"
 
 pinout:
   uo_out:
-    - bit 7: "ALU_out[7] - ALU result bit 7"
-    - bit 6: "ALU_out[6] - ALU result bit 6"
-    - bit 5: "ALU_out[5] - ALU result bit 5"
-    - bit 4: "ALU_out[4] - ALU result bit 4"
-    - bit 3: "ALU_out[3] - ALU result bit 3"
-    - bit 2: "ALU_out[2] - ALU result bit 2"
-    - bit 1: "ALU_out[1] - ALU result bit 1"
-    - bit 0: "ALU_out[0] - ALU result bit 0"
+    - bit 0: "ALU_out[0]"
+    - bit 1: "ALU_out[1]"
+    - bit 2: "ALU_out[2]"
+    - bit 3: "ALU_out[3]"
+    - bit 4: "ALU_out[4]"
+    - bit 5: "ALU_out[5]"
+    - bit 6: "ALU_out[6]"
+    - bit 7: "ALU_out[7]"
 
   uio_out:
-    - bit 7: "ALU_out[15] - ALU result bit 15 (MSB)"
-    - bit 6: "ALU_out[14] - ALU result bit 14"
-    - bit 5: "ALU_out[13] - ALU result bit 13"
-    - bit 4: "ALU_out[12] - ALU result bit 12"
-    - bit 3: "ALU_out[11] - ALU result bit 11"
-    - bit 2: "ALU_out[10] - ALU result bit 10"
-    - bit 1: "ALU_out[9] - ALU result bit 9"
-    - bit 0: "ALU_out[8] - ALU result bit 8"
-
-  ui_in:
-    - bit 7: "Reserved"
-    - bit 6: "Reserved"
-    - bit 5: "Reserved"
-    - bit 4: "Reserved"
-    - bit 3: "Reserved"
-    - bit 2: "Reserved"
-    - bit 1: "Reserved"
-    - bit 0: "Reserved"
+    - bit 0: "ALU_out[8]"
+    - bit 1: "ALU_out[9]"
+    - bit 2: "ALU_out[10]"
+    - bit 3: "ALU_out[11]"
+    - bit 4: "ALU_out[12]"
+    - bit 5: "ALU_out[13]"
+    - bit 6: "ALU_out[14]"
+    - bit 7: "ALU_out[15]"
